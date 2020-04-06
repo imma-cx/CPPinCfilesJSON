@@ -1,0 +1,198 @@
+<!doctype html>
+
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>LogParserToJSON</title>
+  <meta name="LogParserToJSON" content="test">
+  <style>
+    h2 {
+      font-family: verdana;
+      font-size: 38px;
+    }
+    h3 {
+      font-family: verdana;
+      font-size: 18px;
+    }
+    table.greyGridTable {
+      font-family: verdana;
+      border: 2px solid #FFFFFF;
+      width: 100%;
+      text-align: center;
+      border-collapse: collapse;
+    }
+    table.greyGridTable tbody td {
+      font-family: verdana;
+      font-size: 13px;
+      padding-top: 8px;
+    }
+    table.greyGridTable tbody th {
+      font-family: verdana;
+      font-size: 15px;
+      color: #333333;
+      text-align: center;
+      padding-top: 8px;
+      
+    }
+    table.greyGridTable thead {
+      font-family: verdana;
+      background: #FFFFFF;
+      border-bottom: 4px solid #333333;
+      padding-bottom: 8px;
+    }
+    table.greyGridTable thead th {
+      font-family: verdana;
+      font-size: 20px;
+      font-weight: bold;
+      color: #333333;
+      text-align: center;
+      padding-top: 8px;
+    }
+    table.greyGridTable tfoot {
+      font-family: verdana;
+      font-size: 14px;
+      font-weight: bold;
+      color: #333333;
+      border-top: 4px solid #333333;
+      padding-top: 8px;
+    }
+    table.greyGridTable tfoot td {
+      font-family: verdana;
+      font-size: 14px;
+      padding-top: 8px;
+    }
+  </style>
+</head>
+
+<body>
+  <h2>From Log to JSON - "Project Custom Paths" and "global_include_paths"</h2><br>
+  <table class="greyGridTable" style="width:50%">
+    <thead>
+      <tr>
+        <th colspan="3" >Results</th>
+      </tr>
+    </thead>
+    <h3>Upload the log file:</h3>
+    <tfoot>
+      <tr>
+        <td colspan="3">To be continued... Obrigado, foi um gosto!</td>
+      </tr>
+    </tfoot>
+    <tbody>
+      <tr>
+        <input type="file" id="fileinput" />
+        <button onclick="initSteps()">GO</button><br><br>
+      </tr>
+      <tr>
+        <input hidden id="basePath" value="c:\cxsrc\20264_0000002792_001037881057_001502641805_3d8c\">  <!-- remove hidden and user submit the initial path -->
+      </tr>  
+      <tr>
+        
+      </tr>
+      <tr>
+        <th>Full Path</th>
+        <th>JSON Path</th>
+        <th>Filename</th>
+      </tr>
+      <tr>
+        <td><textarea id="resultArea" rows="30" cols="70"></textarea></td>
+        <td><textarea id="pathArea" rows="30" cols="70"></textarea></td>
+        <td><textarea id="fileArea" rows="30" cols="70"></textarea></td>
+      </tr>
+    </tbody>
+  </table>
+  <br>
+    
+  <br>
+    
+  <br>
+    
+
+<script type="text/javascript">
+  var fileText = null;
+  var fileTextLines = null;
+
+  function readSingleFile(evt) {
+    var f = evt.target.files[0]; 
+    if (f) {
+      var r = new FileReader();
+      r.onload = function(e) { 
+        var contents = e.target.result;
+      }
+      r.readAsText(f);
+      fileText = r;
+      fileTextLines = fileText.result.split('\n');
+    } else { 
+      alert("Failed to load file");
+    }
+  }
+  document.getElementById('fileinput').addEventListener('change', readSingleFile, false);
+</script>
+
+<script>
+  function getParsingErrors(fileTextLines) {
+    var regexPattern = "(\\[Parsing\] \\- ).*(\\:\\d+\\:\\d+\\:Exception of type \\'Antlr4\\.Runtime\\.NoViableAltException\\' was thrown\\.)";
+    var filesList = [];
+    var pathListFinal = [];
+    var fileListFinal = [];
+    var basePathValue = document.getElementById("basePath").value; //
+    console.log(basePathValue);
+    for (var i = fileTextLines.length - 1; i >= 0; i--) {
+      var matchResult = fileTextLines[i].match(regexPattern);
+      if (matchResult) {
+        var filePath = matchResult[0].replace(matchResult[1], "").replace(matchResult[2], ""); //.replace(basePathValue, "")
+        if (filesList.includes(filePath) == false) {
+          filesList.push(filePath);
+        }
+      }
+    }
+
+    for (var i = 0; i < filesList.length - 1; i++) {
+      var split = filesList[i].split("\\");
+      if (fileListFinal.includes(split[split.length - 1]) == false) fileListFinal.push(split[split.length - 1]);
+      var tmpPathOnly = "";
+      for (var k = 3; k < split.length - 1; k++) {
+        tmpPathOnly += split[k]
+        tmpPathOnly += "\\";
+      }
+      if (pathListFinal.includes(tmpPathOnly) == false) pathListFinal.push(tmpPathOnly);
+    }
+
+    /*
+    for (var i = 0; i < pathListFinal.length - 1; i++) {
+      var split = pathListFinal[i].split("\\");
+      var test = split.join("\\\\");
+      console.log(test);
+    }
+    */
+
+    var finalString = filesList.join('",\n"');
+    var pathFinalString = pathListFinal.join('",\n"');
+    var fileFinalString = fileListFinal.join('",\n"');
+
+    var doubleQuote = '"';
+    var slash = '/';
+    var backSlash = "\\";
+
+    if (finalString != "") {document.getElementById("resultArea").value = doubleQuote + finalString + doubleQuote;} 
+    else {document.getElementById("resultArea").value = "No results";}
+
+    if (pathFinalString != "") {document.getElementById("pathArea").value = doubleQuote + pathFinalString + doubleQuote;} 
+    else {document.getElementById("pathArea").value = "No results";}
+    
+    if (pathFinalString != "") {document.getElementById("fileArea").value = doubleQuote + fileFinalString + doubleQuote;} 
+    else {document.getElementById("fileArea").value = "No results";}
+    
+    
+  }
+</script>
+
+<script>
+  function initSteps() {
+    fileTextLines = fileText.result.split('\n');
+    getParsingErrors(fileTextLines);
+  }
+</script>
+
+</body>
+</html>
