@@ -75,7 +75,10 @@
     <h3>Upload the log file:</h3>
     <tfoot>
       <tr>
-        <td colspan="3">To be continued... Obrigado, foi um gosto!</td>
+        <td colspan="3"> 
+          <input hidden id="templateJSON" value='{"standards":{},"compilers":{},"libraries":{},"operating_systems":{},"architectures":{},"custom":{"Project Custom Paths":{"global_include_paths":[STRINGPATHTOREPLACE],"c_files_as_CPP":[STRINGFILETOREPLACE]}}}' />
+          <button onclick="downloadJSON()">Download JSON</button><br><br>
+        </td>
       </tr>
     </tfoot>
     <tbody>
@@ -106,22 +109,25 @@
   <br>
     
   <br>
-    
 
+  
+  
 <script type="text/javascript">
-  var fileText = null;
-  var fileTextLines = null;
+  let fileText = null;
+  let fileTextLines = null;
+  var globalPathFinal = null;
+  var globalFileFinal = null;
+  var finalJSON = null;
 
   function readSingleFile(evt) {
-    var f = evt.target.files[0]; 
+    let f = evt.target.files[0]; 
     if (f) {
-      var r = new FileReader();
+      let r = new FileReader();
       r.onload = function(e) { 
-        var contents = e.target.result;
+        let contents = e.target.result;
       }
       r.readAsText(f);
       fileText = r;
-      fileTextLines = fileText.result.split('\n');
     } else { 
       alert("Failed to load file");
     }
@@ -131,59 +137,47 @@
 
 <script>
   function getParsingErrors(fileTextLines) {
-    var regexPattern = "(\\[Parsing\] \\- ).*(\\:\\d+\\:\\d+\\:Exception of type \\'Antlr4\\.Runtime\\.NoViableAltException\\' was thrown\\.)";
-    var filesList = [];
-    var pathListFinal = [];
-    var fileListFinal = [];
-    var basePathValue = document.getElementById("basePath").value; //
-    console.log(basePathValue);
-    for (var i = fileTextLines.length - 1; i >= 0; i--) {
-      var matchResult = fileTextLines[i].match(regexPattern);
+    let regexPattern = "(\\[Parsing\] \\- ).*(\\:\\d+\\:\\d+\\:Exception of type \\'Antlr4\\.Runtime\\.NoViableAltException\\' was thrown\\.)";
+    let filesList = [];
+    let pathListFinal = [];
+    let fileListFinal = [];
+    let basePathValue = document.getElementById("basePath").value; // hardcoded for now TODO: accept basePath as input
+    
+    for (let i = fileTextLines.length - 1; i >= 0; i--) {
+      let matchResult = fileTextLines[i].match(regexPattern);
       if (matchResult) {
-        var filePath = matchResult[0].replace(matchResult[1], "").replace(matchResult[2], ""); //.replace(basePathValue, "")
+        let filePath = matchResult[0].replace(matchResult[1], "").replace(matchResult[2], ""); //.replace(basePathValue, "")
         if (filesList.includes(filePath) == false) {
           filesList.push(filePath);
         }
       }
     }
 
-    for (var i = 0; i < filesList.length - 1; i++) {
-      var split = filesList[i].split("\\");
+    for (let i = 0; i < filesList.length - 1; i++) {
+      let split = filesList[i].split("\\");
       if (fileListFinal.includes(split[split.length - 1]) == false) fileListFinal.push(split[split.length - 1]);
-      var tmpPathOnly = "";
-      for (var k = 3; k < split.length - 1; k++) {
-        tmpPathOnly += split[k]
-        tmpPathOnly += "\\";
+      let tmpPathOnly = "";
+      for (let k = 3; k < split.length - 1; k++) {            //discarding first 3 elements (c:\cxsrc\XXXXXXXXXX_XXXXXXXX_XXXXXXXXXX\)
+        tmpPathOnly += split[k];
+        if (k < split.length -2) tmpPathOnly += "\\\\";       //discarding last slash from file path and joining with \\ for JSON standards
       }
       if (pathListFinal.includes(tmpPathOnly) == false) pathListFinal.push(tmpPathOnly);
     }
 
-    /*
-    for (var i = 0; i < pathListFinal.length - 1; i++) {
-      var split = pathListFinal[i].split("\\");
-      var test = split.join("\\\\");
-      console.log(test);
-    }
-    */
+    let finalString = filesList.join('",\n"');
+    let pathFinalString = pathListFinal.join('",\n"');
+    let fileFinalString = fileListFinal.join('",\n"');
+    globalPathFinal = '"' + pathFinalString + '"';
+    globalFileFinal = '"' + fileFinalString + '"';
 
-    var finalString = filesList.join('",\n"');
-    var pathFinalString = pathListFinal.join('",\n"');
-    var fileFinalString = fileListFinal.join('",\n"');
-
-    var doubleQuote = '"';
-    var slash = '/';
-    var backSlash = "\\";
-
-    if (finalString != "") {document.getElementById("resultArea").value = doubleQuote + finalString + doubleQuote;} 
+    if (finalString != "") {document.getElementById("resultArea").value = '"' + finalString + '"';} 
     else {document.getElementById("resultArea").value = "No results";}
 
-    if (pathFinalString != "") {document.getElementById("pathArea").value = doubleQuote + pathFinalString + doubleQuote;} 
+    if (pathFinalString != "") {document.getElementById("pathArea").value = globalPathFinal;} 
     else {document.getElementById("pathArea").value = "No results";}
     
-    if (pathFinalString != "") {document.getElementById("fileArea").value = doubleQuote + fileFinalString + doubleQuote;} 
+    if (pathFinalString != "") {document.getElementById("fileArea").value = globalFileFinal;} 
     else {document.getElementById("fileArea").value = "No results";}
-    
-    
   }
 </script>
 
@@ -191,6 +185,38 @@
   function initSteps() {
     fileTextLines = fileText.result.split('\n');
     getParsingErrors(fileTextLines);
+  }
+</script>
+
+<script>
+  function replaceInJSON(templateJSON) {
+    if (templateJSON != 0) {
+      let finalJSON = templateJSON.replace(/STRINGPATHTOREPLACE/g, globalPathFinal).replace(/STRINGFILETOREPLACE/g, globalFileFinal); //replace the paths and filenames in the JSON template
+      let filename = "CxCPPDefaultMacros.json";
+      let text = finalJSON;
+      download(filename, text);
+    } else { 
+      alert("Failed to create file");
+  }
+}
+</script>
+
+<script>
+  function download(filename, text) {
+    var element = document.createElement('a');
+    element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+    element.setAttribute('download', filename);
+    element.style.display = 'none';
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+  }
+</script>
+
+<script>
+  function downloadJSON() {
+    let templateJSON = document.getElementById("templateJSON").value;
+    replaceInJSON(templateJSON)
   }
 </script>
 
